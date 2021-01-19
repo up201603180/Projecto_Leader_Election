@@ -4,7 +4,7 @@ import java.io.InputStreamReader;
 import java.net.*;
 import java.util.ArrayList;
 
-public class NodeTransmitter implements Runnable{
+public class NodeTransmitterOrigin implements Runnable{
 
     private Node node;
     private int uniqueID;
@@ -13,7 +13,7 @@ public class NodeTransmitter implements Runnable{
     private DatagramSocket transmitSocket;
     private DatagramPacket transmitPacket;
 
-    public NodeTransmitter(Node node, int uniqueID, int port, InetAddress group){
+    public NodeTransmitterOrigin(Node node, int uniqueID, int port, InetAddress group){
         this.node = node;
         this.uniqueID = uniqueID;
         this.port = port;
@@ -50,30 +50,31 @@ public class NodeTransmitter implements Runnable{
         try {
 
             initializeSockets();
+            BufferedReader startInput = new BufferedReader( new InputStreamReader( System.in ) );
 
-            while( true ){
-
-                // Race Condition
-                Thread.sleep(1);
-
-                if ( node.getInElection() ) {
-                    System.out.println("STARTED ELECTION");
+            while( true ) {
+                if( startInput.readLine().equals("start") ) {
                     startElection();
+                    node.setInElection( true );
+                    node.setWaitACK( true );
+                    break;
                 }
+            }
+
+            while( true ) {
 
                 // Race Condition
                 Thread.sleep(1);
 
-                if ( node.getWaitACK() /*&& node.getAckCounter() == node.neighbours.size()  */) {
-
-                    System.out.println("ACK DONE");
+                if( node.getLeaderID() > 0 ) {
                     node.setWaitACK( false );
+                    System.out.println("ANNOUNCE LEADER");
+                    startLeader( node.getLeaderID() );
                 }
 
             }
 
-
-        } catch (Exception e) {
+        } catch ( Exception e ) {
             e.printStackTrace();
         }
 

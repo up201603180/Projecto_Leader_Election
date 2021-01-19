@@ -7,6 +7,7 @@ public class NodeReceiver implements Runnable{
 
     private Node node;
     private int port;
+    private int ack_counter;
     private InetAddress group;
     private MulticastSocket receiveSocket;
     private DatagramPacket receivePacket;
@@ -19,7 +20,7 @@ public class NodeReceiver implements Runnable{
         this.neighbours = neighbours;
     }
 
-    public void initializeSockets() throws IOException {
+    private void initializeSockets() throws IOException {
 
         receivePacket = null;
         try {
@@ -47,20 +48,64 @@ public class NodeReceiver implements Runnable{
         }
         try {
 
+            // Initialize Algorithm Variables
+            node.setAckCounter( 0 );
+            node.setLeaderID( -1 );
+            node.setMachineState( 0 );
+
             byte[] packetData = new byte[1024];
             String receivedData;
             receivePacket = new DatagramPacket(packetData, packetData.length);
-            while(true){
-                //System.out.println("Waiting for message");
+
+            // Receiver Cycle
+            while( true ) {
+
+                System.out.println("Waiting for message");
                 receiveSocket.receive(receivePacket);
                 receivedData = new String(receivePacket.getData());
-                int sender_id = Integer.parseInt(receivedData.split(",")[0]);
-                String cmd = receivedData.split(",")[1];
 
-                System.out.println("Node " + sender_id + ": " + cmd);
-                if ( cmd.equals("election") && !node.getInElection()) {
+                int senderID = 0, leaderID, pos;
+                String cmd = null;
+
+                // Election State
+                if ( node.getMachineState() == 0 ) {
+                    senderID = Integer.parseInt(receivedData.split(",")[0]);
+                    pos = receivedData.indexOf(",");
+                    cmd = receivedData.substring( pos + 1, receivePacket.getLength());
+                    System.out.println("Node " + senderID + ": " + cmd);
+                }
+                // Leader State
+                else if ( node.getMachineState() == 1 ) {
+                    senderID = Integer.parseInt(receivedData.split(",")[0]);
+                    pos = receivedData.indexOf(",");
+                    cmd = receivedData.substring( pos + 1, receivePacket.getLength());
+                    leaderID = Integer.parseInt(receivedData.split(",")[1]);
+                    System.out.println("Node " + senderID + ": " + cmd + ": " + leaderID);
+                }
+
+                // ELECTION
+                if ( cmd.equals("election") && !node.getInElection() ) {
                     node.setInElection( true );
-                    System.out.println("STARTED ELECTION");
+                    node.setWaitACK( true );
+                    node.setNodeParent(senderID);
+                }
+                // IMMEDIATE ACKNOWLEDGEMENT
+                else if ( cmd.equals("election") && node.getInElection() && ( senderID != node.getNodeParent() ) ) {
+                    // enviar ack imediatamente
+                    // msg = nodeID,ack
+                }
+                // ACKNOWLEDGEMENT
+                else if ( cmd.equals("ack") ) {
+                    node.setAckCounter( node.getAckCounter() + 1 );
+                    if ( node.getAckCounter() == neighbours.size()) {
+                        // -1 durante eleição
+                        node.setLeaderID( 4 /* mais tarde usar o nó com maior valor */ );
+                        node.setAckCounter(0);
+                    }
+                }
+                // LEADER
+                else if ( cmd.equals("leader") ) {
+                    System.out.println("RECEBI LEADER VOTE");
                 }
 
             }
@@ -69,9 +114,6 @@ public class NodeReceiver implements Runnable{
             e.printStackTrace();
         }
 
-        //String receivedData = new String(receivePacket.getData());
-        //System.out.println(receivedData);
-        //receiveSocket.close();
     }
 
 }

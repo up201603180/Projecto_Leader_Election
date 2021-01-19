@@ -3,10 +3,15 @@ import java.util.*;
 
 public class Node {
 
+    private int machineState;
     private int value;
     private int uniqueID;
+    private int nodeParent;
+    private int leaderID;
+    private int ack_counter;
     private boolean in_election;
-    private boolean ack_ready;
+    private boolean waitACK;
+    private ArrayList<Integer> neighbours;
 
     public Node(int value, int uniqueID, boolean in_election){
         this.value = value;
@@ -36,6 +41,54 @@ public class Node {
 
     public void setInElection(boolean in_election) {
         this.in_election = in_election;
+    }
+
+    public int getNodeParent() {
+        return nodeParent;
+    }
+
+    public void setNodeParent(int nodeParent) {
+        this.nodeParent = nodeParent;
+    }
+
+    public int getLeaderID() {
+        return leaderID;
+    }
+
+    public void setLeaderID(int leaderID) {
+        this.leaderID = leaderID;
+    }
+
+    public int getMachineState() {
+        return machineState;
+    }
+
+    public void setMachineState(int machineState) {
+        this.machineState = machineState;
+    }
+
+    public boolean getWaitACK() {
+        return waitACK;
+    }
+
+    public void setWaitACK(boolean waitACK) {
+        this.waitACK = waitACK;
+    }
+
+    public int getAckCounter() {
+        return ack_counter;
+    }
+
+    public void setAckCounter(int ack_counter) {
+        this.ack_counter = ack_counter;
+    }
+
+    public ArrayList<Integer> getNeighbours() {
+        return neighbours;
+    }
+
+    public void setNeighbours(ArrayList<Integer> neighbours) {
+        this.neighbours = neighbours;
     }
 
     public static void main(String[] args) throws Exception{
@@ -92,10 +145,18 @@ public class Node {
 
         Thread.sleep(1000);
 
-        //Transmitter object
-        NodeTransmitter transmitter = new NodeTransmitter( node, Integer.parseInt(args[2]), Integer.parseInt(args[0]), group);
-        Thread threadTransmitter = new Thread(transmitter);
-        threadTransmitter.start();
+        if ( node.uniqueID == 1 ) {
+            //TransmitterOrigin object
+            NodeTransmitterOrigin transmitter = new NodeTransmitterOrigin( node, Integer.parseInt(args[2]), Integer.parseInt(args[0]), group);
+            Thread threadTransmitter = new Thread(transmitter);
+            threadTransmitter.start();
+        }
+        else {
+            //Transmitter object
+            NodeTransmitter transmitter = new NodeTransmitter( node, Integer.parseInt(args[2]), Integer.parseInt(args[0]), group);
+            Thread threadTransmitter = new Thread(transmitter);
+            threadTransmitter.start();
+        }
     }
 
 }
