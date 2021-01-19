@@ -1,20 +1,19 @@
+import javax.sound.midi.Transmitter;
 import java.io.IOException;
 import java.net.*;
 import java.util.ArrayList;
 
 public class NodeReceiver implements Runnable{
 
-    private int value;
-    private int uniqueID;
+    private Node node;
     private int port;
     private InetAddress group;
     private MulticastSocket receiveSocket;
     private DatagramPacket receivePacket;
     private ArrayList<Integer> neighbours;
 
-    public NodeReceiver(int value, int uniqueID, int port, InetAddress group, ArrayList<Integer> neighbours){
-        this.value = value;
-        this.uniqueID = uniqueID;
+    public NodeReceiver( Node node, int port, InetAddress group, ArrayList<Integer> neighbours){
+        this.node = node;
         this.port = port;
         this.group = group;
         this.neighbours = neighbours;
@@ -24,18 +23,21 @@ public class NodeReceiver implements Runnable{
 
         receivePacket = null;
         try {
-            receiveSocket = new MulticastSocket(port);
+            receiveSocket = new MulticastSocket( port );
+            for ( int i = 0; i < neighbours.size(); i++ ) {
+                group = InetAddress.getByName( "230.0.0." + neighbours.get(i));
+                receiveSocket.joinGroup( group );
+            }
         } catch (Exception e) {
             System.out.println("Failed to create socket.");
             //e.printStackTrace();
         }
 
-        System.out.println(group);
-        receiveSocket.joinGroup( group );
     }
 
 
     public void run() {
+
         try {
             initializeSockets();
         } catch (IOException e) {
@@ -43,20 +45,30 @@ public class NodeReceiver implements Runnable{
             e.printStackTrace();
             System.exit(1);
         }
+        try {
 
-        byte[] packetData = new byte[1024];
-        String receivedData = null;
-        receivePacket = new DatagramPacket(packetData, packetData.length);
-        while(true){
-            try {
-                System.out.println("Waiting for message");
+            byte[] packetData = new byte[1024];
+            String receivedData;
+            receivePacket = new DatagramPacket(packetData, packetData.length);
+            while(true){
+                //System.out.println("Waiting for message");
                 receiveSocket.receive(receivePacket);
                 receivedData = new String(receivePacket.getData());
-                System.out.println(receivedData);
-            } catch (IOException e) {
-                e.printStackTrace();
+                int sender_id = Integer.parseInt(receivedData.split(",")[0]);
+                String cmd = receivedData.split(",")[1];
+
+                System.out.println("Node " + sender_id + ": " + cmd);
+                if ( cmd.equals("election") && !node.getInElection()) {
+                    node.setInElection( true );
+                    System.out.println("STARTED ELECTION");
+                }
+
             }
+
+        } catch ( Exception e ) {
+            e.printStackTrace();
         }
+
         //String receivedData = new String(receivePacket.getData());
         //System.out.println(receivedData);
         //receiveSocket.close();
