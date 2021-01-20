@@ -87,7 +87,6 @@ public class NodeReceiver implements Runnable{
                         node.setInElection(true);
                         node.setWaitACK(true);
                         node.setNodeParent(senderID);
-                        node.setMachineState(1);
                     }
                 }
 

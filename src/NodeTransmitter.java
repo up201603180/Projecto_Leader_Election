@@ -55,8 +55,10 @@ public class NodeTransmitter implements Runnable{
 
                 // StandBy state
                 if(node.getMachineState() == 0){
+
                     // Race Condition
                     Thread.sleep(1);
+
                     if(node.getInElection()){
                         System.out.println("Election started");
                         startElection();
