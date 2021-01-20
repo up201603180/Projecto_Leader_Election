@@ -56,8 +56,8 @@ public class NodeTransmitter implements Runnable{
             System.out.println("Message sent: " + new String(transmitPacket.getData()));
         }
         else {
-            // Format real ack-> ID, ack, node, nodeValue
-            byte[] packetData =  (uniqueID + "," + "ack," + node.getNodeCandidate() + "," + node.getNodeCandidateValue() ).getBytes();
+            // Format real ack-> ID, ack, DEST_ID, node, nodeValue
+            byte[] packetData =  (uniqueID + "," + "ack," + node.getNodeParent() + "," + node.getNodeCandidate() + "," + node.getNodeCandidateValue() ).getBytes();
             transmitPacket = new DatagramPacket(packetData, packetData.length, group, port);
             transmitSocket.send(transmitPacket);
             System.out.println("Message sent: " + new String(transmitPacket.getData()));

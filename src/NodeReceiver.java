@@ -36,6 +36,7 @@ public class NodeReceiver implements Runnable{
     // Inteiros para guardar nó e valor durante ack state
     int nodeCandidateToCompare = 0;
     int candidateValueToCompare = 0;
+    int parent = 0;
 
     public void run() {
 
@@ -86,6 +87,7 @@ public class NodeReceiver implements Runnable{
                     if (messageType.equals("election") && !node.getInElection()) {
                         System.out.println("Node " + senderID + ": " + messageType);
                         node.setInElection(true);
+                        node.setNodeParent( senderID );
                         node.setWaitACK(true);
                     }
                 }
@@ -108,39 +110,47 @@ public class NodeReceiver implements Runnable{
                             break;
                         case "ack":
                             // recebe informação do filho acerca do nó que ele diz ser o melhor dele para baixo
-                            nodeCandidateToCompare = Integer.parseInt(receivedData.split(",")[2]);
+                            parent = Integer.parseInt(receivedData.split(",")[2]);
+                            System.out.println(parent);
+                            nodeCandidateToCompare = Integer.parseInt(receivedData.split(",")[3]);
                             System.out.println(nodeCandidateToCompare);
-                            candidateValueToCompare = Integer.parseInt(receivedData.split(",")[3]);
+                            candidateValueToCompare = Integer.parseInt(receivedData.split(",")[4]);
                             System.out.println(candidateValueToCompare);
 
-                            // If ack message is coming from child, update leader values
-                            if ( candidateValueToCompare > node.getNodeCandidateValue()) {
-                                node.setNodeCandidateValue( candidateValueToCompare );
-                                node.setNodeCandidate( nodeCandidateToCompare );
-                            }
-                            node.setAckCounter(node.getAckCounter() + 1);
+                            // Se o ACK era para o nó que o recebeu trata a mensagem, senão descarta
+                            if ( parent == node.getUniqueID() ) {
+                                // If ack message is coming from child, update leader values
+                                if ( candidateValueToCompare > node.getNodeCandidateValue()) {
+                                    node.setNodeCandidateValue( candidateValueToCompare );
+                                    node.setNodeCandidate( nodeCandidateToCompare );
+                                }
+                                node.setAckCounter(node.getAckCounter() + 1);
 
-                            if( node.getUniqueID() == 1 && node.getAckCounter() >= node.getNeighbours().size() ) {
-                                node.setWaitACK( false );
+                                if( node.getUniqueID() == 1 && node.getAckCounter() >= node.getNeighbours().size() ) {
+                                    node.setWaitACK( false );
+                                }
+                                else if ( node.getUniqueID() > 1 && node.getAckCounter() >= node.getNeighbours().size() - 1 ) {
+                                    node.setWaitACK( false );
+                                }
                             }
-                            else if ( node.getUniqueID() > 1 && node.getAckCounter() >= node.getNeighbours().size() - 1 ) {
-                                node.setWaitACK( false );
-                            }
+
                             break;
 
                         case "iac":
                             int iackID = Integer.parseInt( receivedData.split(",")[2] );
-                            if ( node.getUniqueID() == iackID ) {
-                                node.setAckCounter(node.getAckCounter() + 1);
+
+                            if ( iackID == node.getUniqueID() ) {
+                                node.setAckCounter( node.getAckCounter() + 1 );
+                                if( node.getUniqueID() == 1 && node.getAckCounter() >= node.getNeighbours().size() ) {
+                                    node.setWaitACK( false );
+                                }
+                                else if ( node.getUniqueID() > 1 && node.getAckCounter() >= node.getNeighbours().size() - 1 ) {
+                                    node.setWaitACK( false );
+                                }
                                 System.out.println("Received immediate ACK from " + senderID);
                             }
 
-                            if( node.getUniqueID() == 1 && node.getAckCounter() >= node.getNeighbours().size() ) {
-                                node.setWaitACK( false );
-                            }
-                            else if ( node.getUniqueID() > 1 && node.getAckCounter() >= node.getNeighbours().size() - 1 ) {
-                                node.setWaitACK( false );
-                            }
+
                             break;
                     }
 

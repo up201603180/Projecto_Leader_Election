@@ -14,12 +14,21 @@ public class Node {
     private boolean waitACK;
     private int nodeCandidate;
     private int nodeCandidateValue;
+    private int nodeParent;
     private static ArrayList<Integer> neighbours;
 
-    public Node(int value, int uniqueID, boolean in_election ){
+    public Node ( int value, int uniqueID, boolean in_election ){
         this.value = value;
         this.uniqueID = uniqueID;
         this.in_election = in_election;
+    }
+
+    public int getNodeParent() {
+        return nodeParent;
+    }
+
+    public void setNodeParent(int nodeParent) {
+        this.nodeParent = nodeParent;
     }
 
     public int getLeaderValue() {
