@@ -6,19 +6,36 @@ public class Node {
     private int machineState;
     private int value;
     private int uniqueID;
-    private int nodeParent;
     private int leaderID;
+    private int leaderValue;
+    private int iackID;
     private int ack_counter;
     private boolean in_election;
     private boolean waitACK;
     private int nodeCandidate;
     private int nodeCandidateValue;
-    private ArrayList<Integer> neighbours;
+    private static ArrayList<Integer> neighbours;
 
-    public Node(int value, int uniqueID, boolean in_election){
+    public Node(int value, int uniqueID, boolean in_election ){
         this.value = value;
         this.uniqueID = uniqueID;
         this.in_election = in_election;
+    }
+
+    public int getLeaderValue() {
+        return leaderValue;
+    }
+
+    public void setLeaderValue(int leaderValue) {
+        this.leaderValue = leaderValue;
+    }
+
+    public int getIackID() {
+        return iackID;
+    }
+
+    public void setIackID(int iackID) {
+        this.iackID = iackID;
     }
 
     public int getNodeCandidateValue() {
@@ -41,16 +58,8 @@ public class Node {
         return value;
     }
 
-    public void setValue(int value) {
-        this.value = value;
-    }
-
     public int getUniqueID() {
         return uniqueID;
-    }
-
-    public void setUniqueID(int uniqueID) {
-        this.uniqueID = uniqueID;
     }
 
     public boolean getInElection() {
@@ -59,14 +68,6 @@ public class Node {
 
     public void setInElection(boolean in_election) {
         this.in_election = in_election;
-    }
-
-    public int getNodeParent() {
-        return nodeParent;
-    }
-
-    public void setNodeParent(int nodeParent) {
-        this.nodeParent = nodeParent;
     }
 
     public int getLeaderID() {
@@ -105,10 +106,6 @@ public class Node {
         return neighbours;
     }
 
-    public void setNeighbours(ArrayList<Integer> neighbours) {
-        this.neighbours = neighbours;
-    }
-
     public static void main(String[] args) throws Exception{
 
         if(args.length != 3){
@@ -116,11 +113,11 @@ public class Node {
             System.exit(0);
         }
 
-        // Node object
-        Node node = new Node(Integer.parseInt(args[1]), Integer.parseInt(args[2]), false);
+        neighbours = new ArrayList<>();
 
-        // Neighbours initialization
-        ArrayList<Integer> neighbours = new ArrayList<>();
+        // Node object
+        Node node = new Node(Integer.parseInt(args[1]), Integer.parseInt(args[2]), false );
+
 
         String address = null;
         switch( node.uniqueID ) {
