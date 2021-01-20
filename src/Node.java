@@ -17,8 +17,17 @@ public class Node {
     private int nodeCandidateValue;
     private int nodeParent;
     private int rootNode;
+    private boolean haveHeartbeat;
     private static ArrayList<Integer> neighbours;
     private InetAddress broadcast;
+
+    public boolean getHaveHeartbeat() {
+        return haveHeartbeat;
+    }
+
+    public void setHaveHeartbeat(boolean haveHeartbeat) {
+        this.haveHeartbeat = haveHeartbeat;
+    }
 
     public Node ( int value, int uniqueID, boolean in_election ) throws UnknownHostException {
         this.value = value;

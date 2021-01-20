@@ -35,6 +35,16 @@ public class NodeReceiver implements Runnable{
 
     }
 
+    private void checkHeartbeat(){
+        if(!node.getHaveHeartbeat()){
+            System.out.println("A new election should be started");
+            //start new election
+        }
+        else{
+            System.out.println("I have heartbeat");
+        }
+    }
+
     // Inteiros para guardar nó e valor durante ack state
     int nodeCandidateToCompare = 0;
     int candidateValueToCompare = 0;
@@ -44,6 +54,26 @@ public class NodeReceiver implements Runnable{
 
         try {
             initializeSockets();
+
+            // Heartbeat Thread
+            new java.util.Timer().schedule(
+                    new java.util.TimerTask() {
+                        @Override
+                        public void run() {
+
+                            if ( node.getMachineState() == 0 ) {
+                                // If this node is the current leader, send HEARTBEAT
+                                if ( node.getHasLeader() && (node.getLeaderID() != node.getUniqueID()) ) {
+                                    checkHeartbeat();
+                                    node.setHaveHeartbeat(false);
+                                }
+                            }
+
+                        }
+                    },
+                    6000, 6000  //aumentei em relacao a 5s para nao ser tao apertado o check
+            );
+
         } catch (IOException e) {
             System.out.println("Failed to initialize sockets");
             e.printStackTrace();
@@ -81,13 +111,15 @@ public class NodeReceiver implements Runnable{
                 System.out.println(receivedData);
 
                 // Format ID, election
-                // Standby State - waiting for first election message
+                // Standby State - waiting for first election message or with leader elected
                 if ( node.getMachineState() == 0 ) {
                     senderID = Integer.parseInt(receivedData.split(",")[0]);
                     pos = receivedData.indexOf(",");
                     messageType = receivedData.substring(pos + 1, receivePacket.getLength());
+                    System.out.println(messageType);
 
-                    if (messageType.equals("hea")) {
+                    if (messageType.equals("heartbeat")) {
+                        node.setHaveHeartbeat(true);
                         System.out.println("Received HEARTBEAT");
                     }
                     else if (messageType.equals("election") && !node.getInElection()) {
