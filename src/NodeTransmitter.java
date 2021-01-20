@@ -45,12 +45,13 @@ public class NodeTransmitter implements Runnable{
         System.out.println("Message sent: " + new String(transmitPacket.getData()));
     }
 
-    private void startAck ( boolean immediate_ack ) throws IOException {
+    private void startAck ( boolean immediate_ack ) throws Exception {
         if ( immediate_ack ) {
             // Format immediate ack -> ID, ack, DEST_ID
             byte[] packetData =  (uniqueID + ",iack," + node.getIackID() ).getBytes();
             transmitPacket = new DatagramPacket(packetData, packetData.length, group, port);
             transmitSocket.send(transmitPacket);
+            Thread.sleep(1);
             node.setIackID( -1 );
             System.out.println("Message sent: " + new String(transmitPacket.getData()));
         }

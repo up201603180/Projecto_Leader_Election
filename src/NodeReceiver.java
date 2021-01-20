@@ -100,22 +100,12 @@ public class NodeReceiver implements Runnable{
 
                     // Immediate ack, incrementa ackCounter sem alterar nodeCandidate/nodeCandidateValue
                     switch ( messageType ) {
-
-                        case "iac":
-                            int iackID = Integer.parseInt( receivedData.split(",")[2] );
-                            if ( node.getUniqueID() == iackID ) {
-                                node.setAckCounter(node.getAckCounter() + 1);
-                                System.out.println("Received immediate ACK from " + senderID);
-                            }
-
-                            if( node.getUniqueID() == 1 && node.getAckCounter() >= node.getNeighbours().size() ) {
-                                node.setWaitACK( false );
-                            }
-                            else if ( node.getUniqueID() > 1 && node.getAckCounter() >= node.getNeighbours().size() - 1 ) {
-                                node.setWaitACK( false );
-                            }
+                        case "ele":
+                            // Se receber election de outros nós enquanto espera ack's, devolve immediate ack
+                            // Race Condition
+                            Thread.sleep(1);
+                            node.setIackID( senderID );
                             break;
-
                         case "ack":
                             // recebe informação do filho acerca do nó que ele diz ser o melhor dele para baixo
                             nodeCandidateToCompare = Integer.parseInt(receivedData.split(",")[2]);
@@ -138,11 +128,20 @@ public class NodeReceiver implements Runnable{
                             }
                             break;
 
-                        case "ele":
-                            // Se receber election de outros nós enquanto espera ack's, devolve immediate ack
-                            node.setIackID( senderID );
-                            break;
+                        case "iac":
+                            int iackID = Integer.parseInt( receivedData.split(",")[2] );
+                            if ( node.getUniqueID() == iackID ) {
+                                node.setAckCounter(node.getAckCounter() + 1);
+                                System.out.println("Received immediate ACK from " + senderID);
+                            }
 
+                            if( node.getUniqueID() == 1 && node.getAckCounter() >= node.getNeighbours().size() ) {
+                                node.setWaitACK( false );
+                            }
+                            else if ( node.getUniqueID() > 1 && node.getAckCounter() >= node.getNeighbours().size() - 1 ) {
+                                node.setWaitACK( false );
+                            }
+                            break;
                     }
 
                 }
