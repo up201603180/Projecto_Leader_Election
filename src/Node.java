@@ -11,16 +11,44 @@ public class Node {
     private int iackID;
     private int ack_counter;
     private boolean in_election;
+    private boolean hasLeader;
     private boolean waitACK;
     private int nodeCandidate;
     private int nodeCandidateValue;
     private int nodeParent;
+    private int rootNode;
     private static ArrayList<Integer> neighbours;
+    private InetAddress broadcast;
 
-    public Node ( int value, int uniqueID, boolean in_election ){
+    public Node ( int value, int uniqueID, boolean in_election ) throws UnknownHostException {
         this.value = value;
         this.uniqueID = uniqueID;
         this.in_election = in_election;
+        this.broadcast = InetAddress.getByName("230.0.0.255");
+    }
+
+    public int getRootNode() {
+        return rootNode;
+    }
+
+    public void setRootNode(int rootNode) {
+        this.rootNode = rootNode;
+    }
+
+    public InetAddress getBroadcast() {
+        return broadcast;
+    }
+
+    public void setBroadcast(InetAddress broadcast) {
+        this.broadcast = broadcast;
+    }
+
+    public boolean getHasLeader() {
+        return hasLeader;
+    }
+
+    public void setHasLeader(boolean hasLeader) {
+        this.hasLeader = hasLeader;
     }
 
     public int getNodeParent() {
@@ -127,7 +155,6 @@ public class Node {
         // Node object
         Node node = new Node(Integer.parseInt(args[1]), Integer.parseInt(args[2]), false );
 
-
         String address = null;
         switch( node.uniqueID ) {
             case 1:
@@ -160,6 +187,7 @@ public class Node {
         }
 
         //Group that node belongs to
+        node.setRootNode( 1 );
         InetAddress group = InetAddress.getByName( address );
 
         //Receiver object
@@ -169,18 +197,11 @@ public class Node {
 
         Thread.sleep(1000);
 
-        if ( node.uniqueID == 1 ) {
-            //TransmitterOrigin object
-            NodeTransmitterOrigin transmitter = new NodeTransmitterOrigin( node, Integer.parseInt(args[2]), Integer.parseInt(args[0]), group);
-            Thread threadTransmitter = new Thread(transmitter);
-            threadTransmitter.start();
-        }
-        else {
-            //Transmitter object
-            NodeTransmitter transmitter = new NodeTransmitter( node, Integer.parseInt(args[2]), Integer.parseInt(args[0]), group);
-            Thread threadTransmitter = new Thread(transmitter);
-            threadTransmitter.start();
-        }
+        //TransmitterOrigin object
+        NodeTransmitter transmitter = new NodeTransmitter( node, Integer.parseInt(args[2]), Integer.parseInt(args[0]), group);
+        Thread threadTransmitter = new Thread(transmitter);
+        threadTransmitter.start();
+
     }
 
 }

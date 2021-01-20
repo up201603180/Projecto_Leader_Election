@@ -26,6 +26,8 @@ public class NodeReceiver implements Runnable{
                 group = InetAddress.getByName( "230.0.0." + node.getNeighbours().get(i));
                 receiveSocket.joinGroup( group );
             }
+            // Join the broadcast group
+            receiveSocket.joinGroup( node.getBroadcast() );
         } catch (Exception e) {
             System.out.println("Failed to create socket.");
             //e.printStackTrace();
@@ -57,6 +59,7 @@ public class NodeReceiver implements Runnable{
             node.setNodeCandidate( node.getUniqueID() );
             node.setNodeCandidateValue( node.getValue() );
             node.setIackID( -1 );
+            node.setHasLeader( false );
 
             byte[] packetData = new byte[1024];
             String receivedData;
@@ -84,7 +87,10 @@ public class NodeReceiver implements Runnable{
                     pos = receivedData.indexOf(",");
                     messageType = receivedData.substring(pos + 1, receivePacket.getLength());
 
-                    if (messageType.equals("election") && !node.getInElection()) {
+                    if (messageType.equals("hea")) {
+                        System.out.println("Received HEARTBEAT");
+                    }
+                    else if (messageType.equals("election") && !node.getInElection()) {
                         System.out.println("Node " + senderID + ": " + messageType);
                         node.setInElection(true);
                         node.setNodeParent( senderID );

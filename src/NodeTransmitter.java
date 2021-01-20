@@ -2,7 +2,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.*;
-import java.util.ArrayList;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class NodeTransmitter implements Runnable{
 
@@ -27,7 +28,6 @@ public class NodeTransmitter implements Runnable{
             transmitSocket = new DatagramSocket();
         } catch (SocketException e) {
             System.out.println("Failed to create socket.");
-            //e.printStackTrace();
         }
     }
 
@@ -38,9 +38,16 @@ public class NodeTransmitter implements Runnable{
         System.out.println("Message sent: " + new String(transmitPacket.getData()));
     }
 
+    private void startHeartbeat() throws IOException {
+        byte[] packetData =  ( uniqueID + ",heartbeat").getBytes();
+        transmitPacket = new DatagramPacket(packetData, packetData.length, node.getBroadcast(), port);
+        transmitSocket.send(transmitPacket);
+        System.out.println("Message sent: " + new String(transmitPacket.getData()));
+    }
+
     private void startLeader( int leaderID ) throws IOException {
         byte[] packetData =  (uniqueID + ",leader," + leaderID).getBytes();
-        transmitPacket = new DatagramPacket(packetData, packetData.length, group, port);
+        transmitPacket = new DatagramPacket(packetData, packetData.length, node.getBroadcast(), port);
         transmitSocket.send(transmitPacket);
         System.out.println("Message sent: " + new String(transmitPacket.getData()));
     }
@@ -70,67 +77,164 @@ public class NodeTransmitter implements Runnable{
 
             initializeSockets();
 
-            while( true ) {
+            // Heartbeat Thread
+            new java.util.Timer().schedule(
+                    new java.util.TimerTask() {
+                        @Override
+                        public void run() {
 
-                // StandBy state
-                if(node.getMachineState() == 0){
+                            if ( node.getMachineState() == 0 ) {
+                                // If this node is the current leader, send HEARTBEAT
+                                if ( node.getHasLeader() && (node.getLeaderID() == node.getUniqueID()) ) {
+                                    try {
+                                        startHeartbeat();
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            }
 
-                    // Race Condition
-                    Thread.sleep(1);
+                        }
+                    },
+                    5000
+            );
 
-                    if( node.getInElection() ){
+            // Race Condition
+            Thread.sleep(1);
+            if (node.getRootNode() == node.getUniqueID()) {
+                BufferedReader startInput = new BufferedReader( new InputStreamReader( System.in ) );
+
+                while( true ) {
+                    if( startInput.readLine().equals("start") ) {
+                        node.setInElection( true );
+                        node.setWaitACK( true );
+                        node.setMachineState( 1 );
                         System.out.println("Election started, waiting ack...");
                         startElection();
-                        node.setWaitACK( true );
-                        node.setMachineState(1);
+                        break;
                     }
                 }
 
-                // Wait ACK State
-                else if( node.getMachineState() == 1 ) {
+                while( true ) {
 
-                    // Race Condition
-                    Thread.sleep(1);
+                    if ( node.getMachineState() == 0 ) {
+                        if ( !node.getHasLeader() ) {
+                            // Race Condition
+                            Thread.sleep(1);
 
-                    if ( node.getIackID() != -1 ) {
-                        startAck( true );
+                            if( node.getInElection() ){
+                                System.out.println("Election started, waiting ack...");
+                                startElection();
+                                node.setWaitACK( true );
+                                node.setMachineState(1);
+                            }
+                        }
                     }
+                    // Wait ACK State
+                    else if( node.getMachineState() == 1 ) {
 
-                    // Race Condition
-                    Thread.sleep(1);
+                        // Race Condition
+                        Thread.sleep(1);
 
-                    // Se já recebeu ack dos filhos, envia ack para parent
-                    if( !node.getWaitACK() && node.getNodeCandidate() != -1 ) {
-                        node.setMachineState( 2 );
-                        // send real ack to parent with info from childs
-                        System.out.println("Acknowledgements received, informing parent...");
-                        startAck( false );
+                        // Se a raíz já não está à espera de ack's, já tem leader para anunciar
+                        // se recebeu ack mas candidate == -1, deve escolher-se a si próprio como lider
+                        // NOTA: Na nossa tipologia isto não deve acontecer porque o nó 1 tem de facto filhos
+                        if( !node.getWaitACK() && node.getNodeCandidate() == -1 ) {
+                            node.setNodeCandidate( node.getUniqueID() );
+                            node.setNodeCandidateValue( node.getValue() );
+                            node.setMachineState( 2 );
+                            System.out.println("Acknowledgements received...");
+                        }
+                        else if ( !node.getWaitACK() && node.getNodeCandidate() != -1 ) {
+                            node.setMachineState( 2 );
+                            node.setLeaderID( node.getNodeCandidate() );
+                            node.setLeaderValue( node.getNodeCandidateValue() );
+                            System.out.println("Acknowledgements received...");
+
+                        }
+
                     }
-                    // Como nó é uma folha "== -1", deve enviar ack ao parent com o seu id,value
-                    else if ( !node.getWaitACK() && node.getNodeCandidate() == -1 ) {
-                        node.setNodeCandidate( node.getUniqueID() );
-                        node.setNodeCandidateValue( node.getValue() );
-                        node.setMachineState( 2 );
-                        // send real ack to parent with own info
-                        System.out.println("Acknowledgements received, informing parent...");
-                        startAck( false );
-                    }
+                    // Leader State
+                    else if ( node.getMachineState() == 2 ) {
 
-                }
-                // Leader state
-                else if( node.getMachineState() == 2 ){
+                        // Race Condition
+                        Thread.sleep(1);
 
-                    // Race Condition
-                    Thread.sleep(1);
-
-                    if ( node.getLeaderID() > 0 ) {
-                        node.setMachineState( 0 );
-                        node.setInElection( false );
-                        System.out.println("New Leader Found! It's Node " + node.getLeaderID() );
-                        startLeader( node.getLeaderID() );
+                        if( node.getLeaderID() > 0 ) {
+                            node.setMachineState( 0 );
+                            node.setInElection( false );
+                            node.setHasLeader( true );
+                            System.out.println("New Leader Found! It's Node " + node.getLeaderID() );
+                            startLeader( node.getLeaderID() );
+                        }
                     }
                 }
             }
+            else if ( node.getRootNode() != node.getUniqueID() )  {
+                while( true ) {
+
+                    // StandBy state
+                    if(node.getMachineState() == 0){
+
+                        if ( !node.getHasLeader() ) {
+                            // Race Condition
+                            Thread.sleep(1);
+
+                            if (node.getInElection()) {
+                                System.out.println("Election started, waiting ack...");
+                                startElection();
+                                node.setWaitACK(true);
+                                node.setMachineState(1);
+                            }
+                        }
+
+                    }
+                    // Wait ACK State
+                    else if( node.getMachineState() == 1 ) {
+
+
+                        if ( node.getIackID() != -1 ) {
+                            startAck( true );
+                        }
+
+                        // Race Condition
+                        Thread.sleep(1);
+
+                        // Se já recebeu ack dos filhos, envia ack para parent
+                        if( !node.getWaitACK() && node.getNodeCandidate() != -1 ) {
+                            node.setMachineState( 2 );
+                            // send real ack to parent with info from childs
+                            System.out.println("Acknowledgements received, informing parent...");
+                            startAck( false );
+                        }
+                        // Como nó é uma folha "== -1", deve enviar ack ao parent com o seu id,value
+                        else if ( !node.getWaitACK() && node.getNodeCandidate() == -1 ) {
+                            node.setNodeCandidate( node.getUniqueID() );
+                            node.setNodeCandidateValue( node.getValue() );
+                            node.setMachineState( 2 );
+                            // send real ack to parent with own info
+                            System.out.println("Acknowledgements received, informing parent...");
+                            startAck( false );
+                        }
+
+                    }
+                    // Wait for Leader state
+                    else if( node.getMachineState() == 2 ){
+
+                        // Race Condition
+                        Thread.sleep(1);
+
+                        if ( node.getLeaderID() > 0 ) {
+                            node.setMachineState( 0 );
+                            node.setInElection( false );
+                            node.setHasLeader( true );
+                            System.out.println("New Leader Found! It's Node " + node.getLeaderID() );
+                            //startLeader( node.getLeaderID() );
+                        }
+                    }
+                }
+            }
+
 
         } catch (Exception e) {
             e.printStackTrace();
