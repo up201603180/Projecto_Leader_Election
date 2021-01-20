@@ -7,7 +7,6 @@ public class NodeReceiver implements Runnable{
 
     private Node node;
     private int port;
-    private int ack_counter;
     private InetAddress group;
     private MulticastSocket receiveSocket;
     private DatagramPacket receivePacket;
@@ -36,6 +35,15 @@ public class NodeReceiver implements Runnable{
 
     }
 
+    private void printMessage(int senderID, String messageType){
+        if(messageType.equals("election")){
+            System.out.println("Received from Node " + senderID + ": " + messageType);
+        }
+
+    }
+
+    int nodeCandidateToCompare = 0;
+    int candidateValueToCompare = 0;
 
     public void run() {
 
@@ -65,47 +73,54 @@ public class NodeReceiver implements Runnable{
                 receivedData = new String(receivePacket.getData());
 
                 int senderID = 0, leaderID, pos;
-                String cmd = null;
+                String messageType = null;
 
-                // Election State
-                if ( node.getMachineState() == 0 ) {
+                //Format ID, election
+                // Standby State - waiting for first election message
+                if (node.getMachineState() == 0) {
                     senderID = Integer.parseInt(receivedData.split(",")[0]);
                     pos = receivedData.indexOf(",");
-                    cmd = receivedData.substring( pos + 1, receivePacket.getLength());
-                    System.out.println("Node " + senderID + ": " + cmd);
+                    messageType = receivedData.substring(pos + 1, receivePacket.getLength());
+
+                    if (messageType.equals("election") && !node.getInElection()) {
+                        printMessage(senderID, messageType);
+                        node.setInElection(true);
+                        node.setWaitACK(true);
+                        node.setNodeParent(senderID);
+                        node.setMachineState(1);
+                    }
                 }
-                // Leader State
+
+                // ACK Format: immediate ack -> ID, ack, 0, 0  real ack-> ID, ack, node, nodeValue
+                // Wait for ACK state //Election State next
                 else if ( node.getMachineState() == 1 ) {
                     senderID = Integer.parseInt(receivedData.split(",")[0]);
                     pos = receivedData.indexOf(",");
-                    cmd = receivedData.substring( pos + 1, receivePacket.getLength());
-                    leaderID = Integer.parseInt(receivedData.split(",")[1]);
-                    System.out.println("Node " + senderID + ": " + cmd + ": " + leaderID);
-                }
-
-                // ELECTION
-                if ( cmd.equals("election") && !node.getInElection() ) {
-                    node.setInElection( true );
-                    node.setWaitACK( true );
-                    node.setNodeParent(senderID);
-                }
-                // IMMEDIATE ACKNOWLEDGEMENT
-                else if ( cmd.equals("election") && node.getInElection() && ( senderID != node.getNodeParent() ) ) {
-                    // enviar ack imediatamente
-                    // msg = nodeID,ack
-                }
-                // ACKNOWLEDGEMENT
-                else if ( cmd.equals("ack") ) {
-                    node.setAckCounter( node.getAckCounter() + 1 );
-                    if ( node.getAckCounter() == neighbours.size()) {
-                        // -1 durante eleição
-                        node.setLeaderID( 4 /* mais tarde usar o nó com maior valor */ );
-                        node.setAckCounter(0);
+                    messageType = receivedData.substring(pos + 1, pos + 1 + 3);
+                    System.out.println(messageType);
+                    if(messageType.equals("ack")){
+                        nodeCandidateToCompare = Integer.parseInt(receivedData.split(",")[2]);
+                        System.out.println(nodeCandidateToCompare);
+                        candidateValueToCompare = Integer.parseInt(receivedData.split(",")[3]);
+                        System.out.println(candidateValueToCompare);
                     }
-                }
-                // LEADER
-                else if ( cmd.equals("leader") ) {
-                    System.out.println("RECEBI LEADER VOTE");
+
+                    if(node.getNodeCandidate() != 0){ // If ack message is coming from child
+                        node.setAckCounter(node.getAckCounter() + 1);
+                        if(candidateValueToCompare > node.getNodeCandidateValue()){
+
+                        }
+
+                        if(node.getAckCounter() == neighbours.size()){
+
+                            node.setMachineState(2);
+                        }
+                    }
+
+                    senderID = Integer.parseInt(receivedData.split(",")[0]);
+                    pos = receivedData.indexOf(",");
+                    messageType = receivedData.substring( pos + 1, receivePacket.getLength());
+                    System.out.println("Node " + senderID + ": " + messageType);
                 }
 
             }

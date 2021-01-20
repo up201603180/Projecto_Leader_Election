@@ -11,12 +11,30 @@ public class Node {
     private int ack_counter;
     private boolean in_election;
     private boolean waitACK;
+    private int nodeCandidate;
+    private int nodeCandidateValue;
     private ArrayList<Integer> neighbours;
 
     public Node(int value, int uniqueID, boolean in_election){
         this.value = value;
         this.uniqueID = uniqueID;
         this.in_election = in_election;
+    }
+
+    public int getNodeCandidateValue() {
+        return nodeCandidateValue;
+    }
+
+    public void setNodeCandidateValue(int nodeCandidateValue) {
+        this.nodeCandidateValue = nodeCandidateValue;
+    }
+
+    public int getNodeCandidate() {
+        return nodeCandidate;
+    }
+
+    public void setNodeCandidate(int nodeCandidate) {
+        this.nodeCandidate = nodeCandidate;
     }
 
     public int getValue() {

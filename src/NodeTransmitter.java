@@ -53,21 +53,23 @@ public class NodeTransmitter implements Runnable{
 
             while( true ){
 
-                // Race Condition
-                Thread.sleep(1);
-
-                if ( node.getInElection() ) {
-                    System.out.println("STARTED ELECTION");
-                    startElection();
+                // StandBy state
+                if(node.getMachineState() == 0){
+                    // Race Condition
+                    Thread.sleep(1);
+                    if(node.getInElection()){
+                        System.out.println("Election started");
+                        startElection();
+                        node.setWaitACK( true );
+                        node.setMachineState(1);
+                    }
                 }
 
                 // Race Condition
                 Thread.sleep(1);
 
-                if ( node.getWaitACK() /*&& node.getAckCounter() == node.neighbours.size()  */) {
+                if(node.getMachineState() == 1){
 
-                    System.out.println("ACK DONE");
-                    node.setWaitACK( false );
                 }
 
             }
