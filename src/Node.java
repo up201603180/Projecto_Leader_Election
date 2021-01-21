@@ -20,7 +20,7 @@ public class Node {
     private boolean hasHeartbeat;
     private boolean hasProbe;
     private int replyID;
-    private boolean newElection;
+    private int computationIndex;
     private ArrayList<Integer> neighbours;
     private ArrayList<Boolean> neighboursProbe;
     private InetAddress broadcast;
@@ -32,12 +32,12 @@ public class Node {
         this.broadcast = InetAddress.getByName("230.0.0.255");
     }
 
-    public boolean getNewElection() {
-        return newElection;
+    public int getComputationIndex() {
+        return computationIndex;
     }
 
-    public void setNewElection(boolean newElection) {
-        this.newElection = newElection;
+    public void setComputationIndex(int computationIndex) {
+        this.computationIndex = computationIndex;
     }
 
     public int getReplyID() {

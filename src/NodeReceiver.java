@@ -59,7 +59,17 @@ public class NodeReceiver implements Runnable{
     private void checkHeartbeat(){
         if( !node.getHasHeartbeat() ) {
             System.out.println("A new election should be started");
-            node.setNewElection( true );
+            node.setHasLeader( false );
+            for ( int i = 0; i < node.getNeighbours().size(); i++ ) {
+                if ( node.getNeighbours().get(i) == node.getLeaderID() ) {
+                    node.getNeighbours().remove(i);
+                    node.getNeighboursProbe().remove(i);
+                }
+            }
+            node.setLeaderID( -1 );
+            node.setLeaderValue( -1 );
+            node.setAckCounter( 0 );
+            node.setInElection( true );
         }
         else{
             System.out.println("I have heartbeat");
@@ -74,6 +84,7 @@ public class NodeReceiver implements Runnable{
             initializeSockets();
 
             // Initialize Algorithm Variables
+            node.setComputationIndex( 0 );
             node.setAckCounter( 0 );
             node.setLeaderID( -1 );
             node.setLeaderValue( -1 );
@@ -81,7 +92,7 @@ public class NodeReceiver implements Runnable{
             node.setNodeCandidate( node.getUniqueID() );
             node.setNodeCandidateValue( node.getValue() );
             node.setIackID( -1 );
-            node.setNewElection( false );
+            node.setInElection( false );
 
             // Heartbeat Thread
             new java.util.Timer().schedule(
@@ -152,9 +163,10 @@ public class NodeReceiver implements Runnable{
                 if ( node.getMachineState() == 0 ) {
                     senderID = Integer.parseInt(receivedData.split(",")[0]);
                     pos = receivedData.indexOf(",");
-                    messageType = receivedData.substring(pos + 1, receivePacket.getLength());
+                    messageType = receivedData.substring(pos + 1, pos + 1 + 3);
 
-                    if (messageType.equals("election") && !node.getInElection()) {
+
+                    if ( messageType.equals("ele") && !node.getInElection() ) {
                         System.out.println("Node " + senderID + ": " + messageType);
                         node.setInElection(true);
                         node.setNodeParent( senderID );
@@ -212,8 +224,42 @@ public class NodeReceiver implements Runnable{
                             }
 
                         case "ele":
-                            // Se receber election de outros nós enquanto espera ack's, devolve immediate ack
-                            node.setIackID( senderID );
+                            //node.setIackID( senderID );
+                            int computationIndex = Integer.parseInt(receivedData.split(",")[2]);
+
+                            if ( node.getComputationIndex() == computationIndex ) {
+                                System.out.println("hi1");
+                                // compare nodeID
+                                if ( senderID > node.getUniqueID() ) {
+                                    node.setComputationIndex( computationIndex );
+                                    System.out.println("Computation index changed to " + computationIndex);
+                                    System.out.println("Node " + senderID + ": " + messageType);
+                                    node.setInElection(true);
+                                    node.setNodeParent( senderID );
+                                    node.setWaitACK(true);
+                                }
+                                else {
+                                    // Se receber election de outros nós enquanto espera ack's, devolve immediate ack
+                                    node.setIackID( senderID );
+                                }
+
+                            }
+                            else if ( node.getComputationIndex() > computationIndex ) {
+
+                                System.out.println("hi2");
+                                node.setComputationIndex( computationIndex );
+                                System.out.println("Computation index changed to " + computationIndex);
+                                System.out.println("Node " + senderID + ": " + messageType);
+                                node.setInElection(true);
+                                node.setNodeParent( senderID );
+                                node.setAckCounter( 0 );
+                                node.setWaitACK(true);
+                            }
+                            else {
+                                System.out.println("hi3");
+                                // Se receber election de outros nós enquanto espera ack's, devolve immediate ack
+                                node.setIackID( senderID );
+                            }
                             break;
 
                     }

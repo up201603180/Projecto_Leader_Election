@@ -57,7 +57,7 @@ public class NodeTransmitter implements Runnable{
     }
 
     private void startElection() throws IOException {
-        byte[] packetData =  (uniqueID + ",election").getBytes();
+        byte[] packetData =  (uniqueID + ",election," + node.getComputationIndex() ).getBytes();
         transmitPacket = new DatagramPacket(packetData, packetData.length, group, port);
         transmitSocket.send(transmitPacket);
         System.out.println("Message sent: " + new String(transmitPacket.getData()));
@@ -121,6 +121,7 @@ public class NodeTransmitter implements Runnable{
                         node.setInElection(true);
                         node.setWaitACK(true);
                         node.setMachineState(1);
+                        node.setComputationIndex( node.getComputationIndex() + 1 );
                         System.out.println("Election started, waiting ack...");
                         startElection();
                         break;
@@ -139,11 +140,12 @@ public class NodeTransmitter implements Runnable{
                 if ( node.getMachineState() == 0 ) {
                     // Race Condition
                     Thread.sleep(1);
-                    if ( (!node.getHasLeader() && node.getInElection() ) || node.getNewElection() ){
-                            System.out.println("Election started, waiting ack...");
-                            startElection();
-                            node.setWaitACK(true);
-                            node.setMachineState(1);
+                    if ( !node.getHasLeader() && node.getInElection() ){
+                        node.setWaitACK(true);
+                        node.setComputationIndex( node.getComputationIndex() + 1 );
+                        node.setMachineState(1);
+                        System.out.println("Election started, waiting ack...");
+                        startElection();
                     }
                 }
                 // Wait ACK State
