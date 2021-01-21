@@ -17,23 +17,50 @@ public class Node {
     private int nodeCandidateValue;
     private int nodeParent;
     private int rootNode;
-    private boolean haveHeartbeat;
-    private static ArrayList<Integer> neighbours;
+    private boolean hasHeartbeat;
+    private boolean hasProbe;
+    private int replyID;
+    private ArrayList<Integer> neighbours;
+    private ArrayList<Boolean> neighboursProbe;
     private InetAddress broadcast;
-
-    public boolean getHaveHeartbeat() {
-        return haveHeartbeat;
-    }
-
-    public void setHaveHeartbeat(boolean haveHeartbeat) {
-        this.haveHeartbeat = haveHeartbeat;
-    }
 
     public Node ( int value, int uniqueID, boolean in_election ) throws UnknownHostException {
         this.value = value;
         this.uniqueID = uniqueID;
         this.in_election = in_election;
         this.broadcast = InetAddress.getByName("230.0.0.255");
+    }
+
+    public int getReplyID() {
+        return replyID;
+    }
+
+    public void setReplyID(int replyID) {
+        this.replyID = replyID;
+    }
+
+    public ArrayList<Boolean> getNeighboursProbe() {
+        return neighboursProbe;
+    }
+
+    public void setNeighboursProbe(ArrayList<Boolean> neighboursProbe) {
+        this.neighboursProbe = neighboursProbe;
+    }
+
+    public boolean getHasHeartbeat() {
+        return hasHeartbeat;
+    }
+
+    public void setHasHeartbeat(boolean hasHeartbeat) {
+        this.hasHeartbeat = hasHeartbeat;
+    }
+
+    public boolean getHasProbe() {
+        return hasProbe;
+    }
+
+    public void setHasProbe(boolean hasProbe) {
+        this.hasProbe = hasProbe;
     }
 
     public int getRootNode() {
@@ -46,10 +73,6 @@ public class Node {
 
     public InetAddress getBroadcast() {
         return broadcast;
-    }
-
-    public void setBroadcast(InetAddress broadcast) {
-        this.broadcast = broadcast;
     }
 
     public boolean getHasLeader() {
@@ -66,10 +89,6 @@ public class Node {
 
     public void setNodeParent(int nodeParent) {
         this.nodeParent = nodeParent;
-    }
-
-    public int getLeaderValue() {
-        return leaderValue;
     }
 
     public void setLeaderValue(int leaderValue) {
@@ -152,6 +171,10 @@ public class Node {
         return neighbours;
     }
 
+    public void setNeighbours(ArrayList<Integer> neighbours) {
+        this.neighbours = neighbours;
+    }
+
     public static void main(String[] args) throws Exception{
 
         if(args.length != 3){
@@ -159,38 +182,70 @@ public class Node {
             System.exit(0);
         }
 
-        neighbours = new ArrayList<>();
-
         // Node object
         Node node = new Node(Integer.parseInt(args[1]), Integer.parseInt(args[2]), false );
 
+        ArrayList<Integer> neighbours_1 = new ArrayList<>();
+        ArrayList<Integer> neighbours_2 = new ArrayList<>();
+        ArrayList<Integer> neighbours_3 = new ArrayList<>();
+        ArrayList<Integer> neighbours_4 = new ArrayList<>();
+        ArrayList<Integer> neighbours_5 = new ArrayList<>();
+
+        ArrayList<Boolean> neighboursProbe_1 = new ArrayList<>();
+        ArrayList<Boolean> neighboursProbe_2 = new ArrayList<>();
+        ArrayList<Boolean> neighboursProbe_3 = new ArrayList<>();
+        ArrayList<Boolean> neighboursProbe_4 = new ArrayList<>();
+        ArrayList<Boolean> neighboursProbe_5 = new ArrayList<>();
+
         String address = null;
-        switch( node.uniqueID ) {
+        switch( node.getUniqueID() ) {
             case 1:
-                neighbours.add(2);
-                neighbours.add(3);
+                neighbours_1.add(2);
+                neighbours_1.add(3);
+                node.setNeighbours(neighbours_1);
+                neighboursProbe_1.add(false);
+                neighboursProbe_1.add(false);
+                node.setNeighboursProbe(neighboursProbe_1);
                 address = "230.0.0.1";
                 break;
             case 2:
-                neighbours.add(1);
-                neighbours.add(3);
-                neighbours.add(4);
+                neighbours_2.add(1);
+                neighbours_2.add(3);
+                neighbours_2.add(4);
+                node.setNeighbours(neighbours_2);
+                neighboursProbe_2.add(false);
+                neighboursProbe_2.add(false);
+                neighboursProbe_2.add(false);
+                node.setNeighboursProbe(neighboursProbe_2);
                 address = "230.0.0.2";
                 break;
             case 3:
-                neighbours.add(1);
-                neighbours.add(2);
-                neighbours.add(5);
+                neighbours_3.add(1);
+                neighbours_3.add(2);
+                neighbours_3.add(5);
+                node.setNeighbours(neighbours_3);
+                neighboursProbe_3.add(false);
+                neighboursProbe_3.add(false);
+                neighboursProbe_3.add(false);
+                node.setNeighboursProbe(neighboursProbe_3);
                 address = "230.0.0.3";
                 break;
             case 4:
-                neighbours.add(2);
-                neighbours.add(5);
+                neighbours_4.add(2);
+                neighbours_4.add(5);
+                node.setNeighbours(neighbours_4);
+                neighboursProbe_4.add(false);
+                neighboursProbe_4.add(false);
+                node.setNeighboursProbe(neighboursProbe_4);
                 address = "230.0.0.4";
                 break;
             case 5:
-                neighbours.add(3);
-                neighbours.add(4);
+                neighbours_5.add(3);
+                neighbours_5.add(4);
+                node.setNeighbours(neighbours_5);
+                neighboursProbe_5.add(false);
+                neighboursProbe_5.add(false);
+                node.setNeighboursProbe(neighboursProbe_5);
                 address = "230.0.0.5";
                 break;
         }
@@ -200,7 +255,7 @@ public class Node {
         InetAddress group = InetAddress.getByName( address );
 
         //Receiver object
-        NodeReceiver receiver = new NodeReceiver( node, Integer.parseInt(args[0]), group, neighbours);
+        NodeReceiver receiver = new NodeReceiver( node, Integer.parseInt(args[0]), group );
         Thread threadReceiver = new Thread(receiver);
         threadReceiver.start();
 

@@ -11,7 +11,7 @@ public class NodeReceiver implements Runnable{
     private MulticastSocket receiveSocket;
     private DatagramPacket receivePacket;
 
-    public NodeReceiver( Node node, int port, InetAddress group, ArrayList<Integer> neighbours){
+    public NodeReceiver( Node node, int port, InetAddress group ){
         this.node = node;
         this.port = port;
         this.group = group;
@@ -35,8 +35,24 @@ public class NodeReceiver implements Runnable{
 
     }
 
+    private void checkProbe() {
+
+        for ( int i = 0; i < node.getNeighboursProbe().size(); i++ ) {
+            if ( !node.getNeighboursProbe().get(i) ) {
+                // Não recebeu reply de um dos vizinhos e deve remover da lista neighbours
+                System.out.println( "Lost connection with Node: " + node.getNeighbours().get(i) );
+                node.getNeighbours().remove(i);
+                node.getNeighboursProbe().remove(i);
+            }
+            else {
+                node.getNeighboursProbe().set(i, false);
+            }
+        }
+
+    }
+
     private void checkHeartbeat(){
-        if(!node.getHaveHeartbeat()){
+        if( !node.getHasHeartbeat() ) {
             System.out.println("A new election should be started");
             //start new election
         }
@@ -61,17 +77,20 @@ public class NodeReceiver implements Runnable{
                         @Override
                         public void run() {
 
+                            checkProbe();
+                            node.setHasProbe( false );
+
                             if ( node.getMachineState() == 0 ) {
                                 // If this node is the current leader, send HEARTBEAT
                                 if ( node.getHasLeader() && (node.getLeaderID() != node.getUniqueID()) ) {
                                     checkHeartbeat();
-                                    node.setHaveHeartbeat(false);
+                                    node.setHasHeartbeat( false );
                                 }
                             }
 
                         }
                     },
-                    6000, 6000  //aumentei em relacao a 5s para nao ser tao apertado o check
+                    14000, 14000  //aumentei em relacao a 5s para nao ser tao apertado o check
             );
 
         } catch (IOException e) {
@@ -79,6 +98,7 @@ public class NodeReceiver implements Runnable{
             e.printStackTrace();
             System.exit(1);
         }
+
         try {
 
             // Initialize Algorithm Variables
@@ -89,7 +109,15 @@ public class NodeReceiver implements Runnable{
             node.setNodeCandidate( node.getUniqueID() );
             node.setNodeCandidateValue( node.getValue() );
             node.setIackID( -1 );
+            node.setReplyID( -1 );
             node.setHasLeader( false );
+            node.setHasProbe( false );
+
+            /*
+            for ( int i = 0; i < node.getNeighboursProbe().size(); i++ ) {
+                node.getNeighboursProbe().set(i, true);
+            }
+            */
 
             byte[] packetData = new byte[1024];
             String receivedData;
@@ -104,11 +132,33 @@ public class NodeReceiver implements Runnable{
                 receivedData = new String(receivePacket.getData(), receivePacket.getOffset(), receivePacket.getLength() );
 
                 int senderID, pos;
-                String messageType;
+                String messageType = null;
 
                 //Race Conditions
                 Thread.sleep(1);
-                System.out.println(receivedData);
+                System.out.println( receivedData );
+
+                senderID = Integer.parseInt(receivedData.split(",")[0]);
+                pos = receivedData.indexOf(",");
+                messageType = receivedData.substring(pos + 1, receivePacket.getLength());
+
+                // Format: senderID, probe
+                // Probe Message
+                if ( messageType.equals( "pro" ) ) {
+                    node.setReplyID( senderID );
+                }
+                else if ( messageType.equals( "rep" ) ) {
+                    int index = -1;
+                    // Save the index of the probe sender to
+                    for ( int i = 0; i < node.getNeighbours().size(); i++ ) {
+                        if ( node.getNeighbours().get(i) == senderID )
+                            index = i;
+                    }
+                    if ( index >= 0 ) {
+                        System.out.println("Received REPLY from Node " + senderID);
+                        node.getNeighboursProbe().set(index, true);
+                    }
+                }
 
                 // Format ID, election
                 // Standby State - waiting for first election message or with leader elected
@@ -116,10 +166,10 @@ public class NodeReceiver implements Runnable{
                     senderID = Integer.parseInt(receivedData.split(",")[0]);
                     pos = receivedData.indexOf(",");
                     messageType = receivedData.substring(pos + 1, receivePacket.getLength());
-                    System.out.println(messageType);
+                    //System.out.println(messageType);
 
-                    if (messageType.equals("heartbeat")) {
-                        node.setHaveHeartbeat(true);
+                    if ( messageType.equals("heartbeat") ) {
+                        node.setHasHeartbeat( true );
                         System.out.println("Received HEARTBEAT");
                     }
                     else if (messageType.equals("election") && !node.getInElection()) {
@@ -187,7 +237,6 @@ public class NodeReceiver implements Runnable{
                                 }
                                 System.out.println("Received immediate ACK from " + senderID);
                             }
-
 
                             break;
                     }

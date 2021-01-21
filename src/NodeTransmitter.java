@@ -14,7 +14,7 @@ public class NodeTransmitter implements Runnable{
     private DatagramSocket transmitSocket;
     private DatagramPacket transmitPacket;
 
-    public NodeTransmitter(Node node, int uniqueID, int port, InetAddress group){
+    public NodeTransmitter( Node node, int uniqueID, int port, InetAddress group ) {
         this.node = node;
         this.uniqueID = uniqueID;
         this.port = port;
@@ -38,7 +38,25 @@ public class NodeTransmitter implements Runnable{
         System.out.println("Message sent: " + new String(transmitPacket.getData()));
     }
 
-    private void startHeartbeat() throws IOException {
+    private void reply( int nodeID ) throws IOException {
+        byte[] packetData =  ( uniqueID + ",reply," + nodeID ).getBytes();
+        transmitPacket = new DatagramPacket(packetData, packetData.length, group, port);
+        transmitSocket.send(transmitPacket);
+        System.out.println("Message sent: " + new String(transmitPacket.getData()));
+    }
+
+    private void probe() throws IOException {
+        // change  this uniqueID to a node ID not to send probe
+        if ( uniqueID != -1 ) {
+
+            byte[] packetData =  ( uniqueID + ",probe").getBytes();
+            transmitPacket = new DatagramPacket(packetData, packetData.length, group, port);
+            transmitSocket.send(transmitPacket);
+            System.out.println("Message sent: " + new String(transmitPacket.getData()));
+        }
+    }
+
+    private void heartbeat() throws IOException {
         byte[] packetData =  ( uniqueID + ",heartbeat").getBytes();
         transmitPacket = new DatagramPacket(packetData, packetData.length, node.getBroadcast(), port);
         transmitSocket.send(transmitPacket);
@@ -83,24 +101,31 @@ public class NodeTransmitter implements Runnable{
                         @Override
                         public void run() {
 
-                            if ( node.getMachineState() == 0 ) {
+                            try {
+
+                                // Send probe periodically
+                                probe();
+
+                                // Race Conditions
+                                Thread.sleep(1);
+
                                 // If this node is the current leader, send HEARTBEAT
                                 if ( node.getHasLeader() && (node.getLeaderID() == node.getUniqueID()) ) {
-                                    try {
-                                        startHeartbeat();
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
-                                    }
+                                    heartbeat();
                                 }
+
+                            } catch ( Exception e ) {
+                                e.printStackTrace();
                             }
 
                         }
                     },
-                    5000, 5000
+                    10000, 10000
             );
 
             // Race Condition
             Thread.sleep(1);
+
             if (node.getRootNode() == node.getUniqueID()) {
                 BufferedReader startInput = new BufferedReader( new InputStreamReader( System.in ) );
 
@@ -116,6 +141,15 @@ public class NodeTransmitter implements Runnable{
                 }
 
                 while( true ) {
+
+                    // Race Conditions
+                    Thread.sleep(1);
+
+                    // If has node to reply to
+                    if ( node.getReplyID() > 0 ) {
+                        reply( node.getReplyID() );
+                        node.setReplyID( -1 );
+                    }
 
                     if ( node.getMachineState() == 0 ) {
                         if ( !node.getHasLeader() ) {
@@ -172,6 +206,15 @@ public class NodeTransmitter implements Runnable{
             }
             else if ( node.getRootNode() != node.getUniqueID() )  {
                 while( true ) {
+
+                    // Race Conditions
+                    Thread.sleep(1);
+
+                    // If has node to reply to
+                    if ( node.getReplyID() > 0 ) {
+                        reply( node.getReplyID() );
+                        node.setReplyID( -1 );
+                    }
 
                     // StandBy state
                     if(node.getMachineState() == 0){
