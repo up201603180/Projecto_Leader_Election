@@ -2,6 +2,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.*;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 
 public class NodeTransmitter implements Runnable{
@@ -12,6 +14,8 @@ public class NodeTransmitter implements Runnable{
     private InetAddress group;
     private DatagramSocket transmitSocket;
     private DatagramPacket transmitPacket;
+    Instant start;
+    Instant finish;
 
     public NodeTransmitter(Node node, int uniqueID, int port, InetAddress group){
         this.node = node;
@@ -122,6 +126,7 @@ public class NodeTransmitter implements Runnable{
                         node.setWaitACK(true);
                         node.setMachineState(1);
                         node.setComputationIndex( node.getComputationIndex() + 1 );
+                        start = Instant.now();
                         System.out.println("Election started, waiting ack...");
                         startElection();
                         break;
@@ -204,7 +209,10 @@ public class NodeTransmitter implements Runnable{
                         node.setMachineState( 0 );
                         node.setInElection( false );
                         node.setHasLeader( true );
+                        finish = Instant.now();
                         System.out.println("New Leader Found! It's Node " + node.getLeaderID() );
+                        long timeElapsed = Duration.between(start, finish).toMillis();
+                        System.out.println("Election time = " + timeElapsed + " ms");
                         startLeader( node.getLeaderID() );
                     }
                 }

@@ -1,6 +1,7 @@
 import javax.sound.midi.Transmitter;
 import java.io.IOException;
 import java.net.*;
+import java.time.Instant;
 import java.util.ArrayList;
 
 public class NodeReceiver implements Runnable{
@@ -224,42 +225,7 @@ public class NodeReceiver implements Runnable{
                             }
 
                         case "ele":
-                            //node.setIackID( senderID );
-                            int computationIndex = Integer.parseInt(receivedData.split(",")[2]);
-
-                            if ( node.getComputationIndex() == computationIndex ) {
-                                System.out.println("hi1");
-                                // compare nodeID
-                                if ( senderID > node.getUniqueID() ) {
-                                    node.setComputationIndex( computationIndex );
-                                    System.out.println("Computation index changed to " + computationIndex);
-                                    System.out.println("Node " + senderID + ": " + messageType);
-                                    node.setInElection(true);
-                                    node.setNodeParent( senderID );
-                                    node.setWaitACK(true);
-                                }
-                                else {
-                                    // Se receber election de outros nós enquanto espera ack's, devolve immediate ack
-                                    node.setIackID( senderID );
-                                }
-
-                            }
-                            else if ( node.getComputationIndex() > computationIndex ) {
-
-                                System.out.println("hi2");
-                                node.setComputationIndex( computationIndex );
-                                System.out.println("Computation index changed to " + computationIndex);
-                                System.out.println("Node " + senderID + ": " + messageType);
-                                node.setInElection(true);
-                                node.setNodeParent( senderID );
-                                node.setAckCounter( 0 );
-                                node.setWaitACK(true);
-                            }
-                            else {
-                                System.out.println("hi3");
-                                // Se receber election de outros nós enquanto espera ack's, devolve immediate ack
-                                node.setIackID( senderID );
-                            }
+                            node.setIackID( senderID );
                             break;
 
                     }
@@ -278,6 +244,7 @@ public class NodeReceiver implements Runnable{
                         node.setLeaderID( leaderID );
                     }
                 }
+
             }
 
         } catch ( Exception e ) {
