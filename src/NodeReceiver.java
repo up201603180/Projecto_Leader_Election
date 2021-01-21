@@ -11,7 +11,7 @@ public class NodeReceiver implements Runnable{
     private MulticastSocket receiveSocket;
     private DatagramPacket receivePacket;
 
-    public NodeReceiver( Node node, int port, InetAddress group ){
+    public NodeReceiver( Node node, int port, InetAddress group, ArrayList<Integer> neighbours){
         this.node = node;
         this.port = port;
         this.group = group;
@@ -26,8 +26,6 @@ public class NodeReceiver implements Runnable{
                 group = InetAddress.getByName( "230.0.0." + node.getNeighbours().get(i));
                 receiveSocket.joinGroup( group );
             }
-            // Join the broadcast group
-            receiveSocket.joinGroup( node.getBroadcast() );
         } catch (Exception e) {
             System.out.println("Failed to create socket.");
             //e.printStackTrace();
@@ -35,71 +33,19 @@ public class NodeReceiver implements Runnable{
 
     }
 
-    private void checkProbe() {
-
-        for ( int i = 0; i < node.getNeighboursProbe().size(); i++ ) {
-            if ( !node.getNeighboursProbe().get(i) ) {
-                // Não recebeu reply de um dos vizinhos e deve remover da lista neighbours
-                System.out.println( "Lost connection with Node: " + node.getNeighbours().get(i) );
-                node.getNeighbours().remove(i);
-                node.getNeighboursProbe().remove(i);
-            }
-            else {
-                node.getNeighboursProbe().set(i, false);
-            }
-        }
-
-    }
-
-    private void checkHeartbeat(){
-        if( !node.getHasHeartbeat() ) {
-            System.out.println("A new election should be started");
-            //node.setNewElection(true);
-            //start new election
-        }
-        else{
-            System.out.println("I have heartbeat");
-        }
-    }
-
     // Inteiros para guardar nó e valor durante ack state
     int nodeCandidateToCompare = 0;
     int candidateValueToCompare = 0;
-    int parent = 0;
 
     public void run() {
 
         try {
             initializeSockets();
-
-            // Heartbeat Thread
-            new java.util.Timer().schedule(
-                    new java.util.TimerTask() {
-                        @Override
-                        public void run() {
-
-                            checkProbe();
-                            node.setHasProbe( false );
-
-                            if ( node.getMachineState() == 0 ) {
-                                // If this node is the current leader, send HEARTBEAT
-                                if ( node.getHasLeader() && (node.getLeaderID() != node.getUniqueID()) ) {
-                                    checkHeartbeat();
-                                    node.setHasHeartbeat( false );
-                                }
-                            }
-
-                        }
-                    },
-                    35000, 35000  //aumentei em relacao a 5s para nao ser tao apertado o check
-            );
-
         } catch (IOException e) {
             System.out.println("Failed to initialize sockets");
             e.printStackTrace();
             System.exit(1);
         }
-
         try {
 
             // Initialize Algorithm Variables
@@ -110,15 +56,6 @@ public class NodeReceiver implements Runnable{
             node.setNodeCandidate( node.getUniqueID() );
             node.setNodeCandidateValue( node.getValue() );
             node.setIackID( -1 );
-            node.setReplyID( -1 );
-            node.setHasLeader( false );
-            node.setHasProbe( false );
-            node.setNewElection(false);
-            /*
-            for ( int i = 0; i < node.getNeighboursProbe().size(); i++ ) {
-                node.getNeighboursProbe().set(i, true);
-            }
-            */
 
             byte[] packetData = new byte[1024];
             String receivedData;
@@ -133,48 +70,22 @@ public class NodeReceiver implements Runnable{
                 receivedData = new String(receivePacket.getData(), receivePacket.getOffset(), receivePacket.getLength() );
 
                 int senderID, pos;
-                String messageType = null;
+                String messageType;
 
                 //Race Conditions
                 Thread.sleep(1);
-                System.out.println( receivedData );
-
-                senderID = Integer.parseInt(receivedData.split(",")[0]);
-                pos = receivedData.indexOf(",");
-                messageType = receivedData.substring(pos + 1, pos + 1 + 5 );
-
-                // Format: senderID, probe
-                // Probe Message
-                if ( messageType.equals( "probe" ) ) {
-                    node.setReplyID( senderID );
-                }
-                else if ( messageType.equals( "reply" ) ) {
-
-                    // Save the index of the probe sender to
-                    for ( int i = 0; i < node.getNeighbours().size(); i++ ) {
-                        if ( node.getNeighbours().get(i) == senderID ) {
-                            node.getNeighboursProbe().set(i, true);
-                            break;
-                        }
-                    }
-                }
+                System.out.println(receivedData);
 
                 // Format ID, election
-                // Standby State - waiting for first election message or with leader elected
+                // Standby State - waiting for first election message
                 if ( node.getMachineState() == 0 ) {
                     senderID = Integer.parseInt(receivedData.split(",")[0]);
                     pos = receivedData.indexOf(",");
                     messageType = receivedData.substring(pos + 1, receivePacket.getLength());
-                    //System.out.println(messageType);
 
-                    if ( messageType.equals("heartbeat") && (senderID == node.getUniqueID()) ) {
-                        node.setHasHeartbeat( true );
-                        System.out.println("Received HEARTBEAT");
-                    }
-                    else if (messageType.equals("election") && !node.getInElection()) {
+                    if (messageType.equals("election") && !node.getInElection()) {
                         System.out.println("Node " + senderID + ": " + messageType);
                         node.setInElection(true);
-                        node.setNodeParent( senderID );
                         node.setWaitACK(true);
                     }
                 }
@@ -189,52 +100,49 @@ public class NodeReceiver implements Runnable{
 
                     // Immediate ack, incrementa ackCounter sem alterar nodeCandidate/nodeCandidateValue
                     switch ( messageType ) {
-                        case "ele":
-                            // Se receber election de outros nós enquanto espera ack's, devolve immediate ack
-                            // Race Condition
-                            Thread.sleep(1);
-                            node.setIackID( senderID );
-                            break;
-                        case "ack":
-                            // recebe informação do filho acerca do nó que ele diz ser o melhor dele para baixo
-                            parent = Integer.parseInt(receivedData.split(",")[2]);
-                            nodeCandidateToCompare = Integer.parseInt(receivedData.split(",")[3]);
-                            candidateValueToCompare = Integer.parseInt(receivedData.split(",")[4]);
-
-                            // Se o ACK era para o nó que o recebeu trata a mensagem, senão descarta
-                            if ( parent == node.getUniqueID() ) {
-                                // If ack message is coming from child, update leader values
-                                if ( candidateValueToCompare > node.getNodeCandidateValue()) {
-                                    node.setNodeCandidateValue( candidateValueToCompare );
-                                    node.setNodeCandidate( nodeCandidateToCompare );
-                                }
-                                node.setAckCounter(node.getAckCounter() + 1);
-
-                                if( node.getUniqueID() == 1 && node.getAckCounter() >= node.getNeighbours().size() ) {
-                                    node.setWaitACK( false );
-                                }
-                                else if ( node.getUniqueID() > 1 && node.getAckCounter() >= node.getNeighbours().size() - 1 ) {
-                                    node.setWaitACK( false );
-                                }
-                            }
-
-                            break;
 
                         case "iac":
                             int iackID = Integer.parseInt( receivedData.split(",")[2] );
-
-                            if ( iackID == node.getUniqueID() ) {
-                                node.setAckCounter( node.getAckCounter() + 1 );
-                                if( node.getUniqueID() == 1 && node.getAckCounter() >= node.getNeighbours().size() ) {
-                                    node.setWaitACK( false );
-                                }
-                                else if ( node.getUniqueID() > 1 && node.getAckCounter() >= node.getNeighbours().size() - 1 ) {
-                                    node.setWaitACK( false );
-                                }
+                            if ( node.getUniqueID() == iackID ) {
+                                node.setAckCounter(node.getAckCounter() + 1);
                                 System.out.println("Received immediate ACK from " + senderID);
                             }
 
+                            if( node.getUniqueID() == 1 && node.getAckCounter() >= node.getNeighbours().size() ) {
+                                node.setWaitACK( false );
+                            }
+                            else if ( node.getUniqueID() > 1 && node.getAckCounter() >= node.getNeighbours().size() - 1 ) {
+                                node.setWaitACK( false );
+                            }
                             break;
+
+                        case "ack":
+                            // recebe informação do filho acerca do nó que ele diz ser o melhor dele para baixo
+                            nodeCandidateToCompare = Integer.parseInt(receivedData.split(",")[2]);
+                            System.out.println(nodeCandidateToCompare);
+                            candidateValueToCompare = Integer.parseInt(receivedData.split(",")[3]);
+                            System.out.println(candidateValueToCompare);
+
+                            // If ack message is coming from child, update leader values
+                            if ( candidateValueToCompare > node.getNodeCandidateValue()) {
+                                node.setNodeCandidateValue( candidateValueToCompare );
+                                node.setNodeCandidate( nodeCandidateToCompare );
+                            }
+                            node.setAckCounter(node.getAckCounter() + 1);
+
+                            if( node.getUniqueID() == 1 && node.getAckCounter() >= node.getNeighbours().size() ) {
+                                node.setWaitACK( false );
+                            }
+                            else if ( node.getUniqueID() > 1 && node.getAckCounter() >= node.getNeighbours().size() - 1 ) {
+                                node.setWaitACK( false );
+                            }
+                            break;
+
+                        case "ele":
+                            // Se receber election de outros nós enquanto espera ack's, devolve immediate ack
+                            node.setIackID( senderID );
+                            break;
+
                     }
 
                 }
