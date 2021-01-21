@@ -120,7 +120,7 @@ public class NodeTransmitter implements Runnable{
 
                         }
                     },
-                    10000, 10000
+                    30000, 30000
             );
 
             // Race Condition
@@ -211,6 +211,7 @@ public class NodeTransmitter implements Runnable{
 
                     // If has node to reply to
                     if ( node.getReplyID() > 0 ) {
+                        System.out.println("MANDEI REPLY");
                         reply( node.getReplyID() );
                         node.setReplyID( -1 );
                     }

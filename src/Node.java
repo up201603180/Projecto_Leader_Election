@@ -20,6 +20,7 @@ public class Node {
     private boolean hasHeartbeat;
     private boolean hasProbe;
     private int replyID;
+    private boolean newElection;
     private ArrayList<Integer> neighbours;
     private ArrayList<Boolean> neighboursProbe;
     private InetAddress broadcast;
@@ -29,6 +30,14 @@ public class Node {
         this.uniqueID = uniqueID;
         this.in_election = in_election;
         this.broadcast = InetAddress.getByName("230.0.0.255");
+    }
+
+    public boolean getNewElection() {
+        return newElection;
+    }
+
+    public void setNewElection(boolean newElection) {
+        this.newElection = newElection;
     }
 
     public int getReplyID() {

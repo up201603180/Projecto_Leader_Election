@@ -54,6 +54,7 @@ public class NodeReceiver implements Runnable{
     private void checkHeartbeat(){
         if( !node.getHasHeartbeat() ) {
             System.out.println("A new election should be started");
+            //node.setNewElection(true);
             //start new election
         }
         else{
@@ -90,7 +91,7 @@ public class NodeReceiver implements Runnable{
 
                         }
                     },
-                    14000, 14000  //aumentei em relacao a 5s para nao ser tao apertado o check
+                    35000, 35000  //aumentei em relacao a 5s para nao ser tao apertado o check
             );
 
         } catch (IOException e) {
@@ -112,7 +113,7 @@ public class NodeReceiver implements Runnable{
             node.setReplyID( -1 );
             node.setHasLeader( false );
             node.setHasProbe( false );
-
+            node.setNewElection(false);
             /*
             for ( int i = 0; i < node.getNeighboursProbe().size(); i++ ) {
                 node.getNeighboursProbe().set(i, true);
@@ -166,7 +167,7 @@ public class NodeReceiver implements Runnable{
                     messageType = receivedData.substring(pos + 1, receivePacket.getLength());
                     //System.out.println(messageType);
 
-                    if ( messageType.equals("heartbeat") ) {
+                    if ( messageType.equals("heartbeat") && (senderID == node.getUniqueID()) ) {
                         node.setHasHeartbeat( true );
                         System.out.println("Received HEARTBEAT");
                     }
