@@ -141,7 +141,6 @@ public class NodeTransmitter implements Runnable{
                 }
 
                 while( true ) {
-
                     // Race Conditions
                     Thread.sleep(1);
 

@@ -140,23 +140,21 @@ public class NodeReceiver implements Runnable{
 
                 senderID = Integer.parseInt(receivedData.split(",")[0]);
                 pos = receivedData.indexOf(",");
-                messageType = receivedData.substring(pos + 1, receivePacket.getLength());
+                messageType = receivedData.substring(pos + 1, pos + 1 + 5 );
 
                 // Format: senderID, probe
                 // Probe Message
-                if ( messageType.equals( "pro" ) ) {
+                if ( messageType.equals( "probe" ) ) {
                     node.setReplyID( senderID );
                 }
-                else if ( messageType.equals( "rep" ) ) {
-                    int index = -1;
+                else if ( messageType.equals( "reply" ) ) {
+
                     // Save the index of the probe sender to
                     for ( int i = 0; i < node.getNeighbours().size(); i++ ) {
-                        if ( node.getNeighbours().get(i) == senderID )
-                            index = i;
-                    }
-                    if ( index >= 0 ) {
-                        System.out.println("Received REPLY from Node " + senderID);
-                        node.getNeighboursProbe().set(index, true);
+                        if ( node.getNeighbours().get(i) == senderID ) {
+                            node.getNeighboursProbe().set(i, true);
+                            break;
+                        }
                     }
                 }
 
@@ -199,11 +197,8 @@ public class NodeReceiver implements Runnable{
                         case "ack":
                             // recebe informação do filho acerca do nó que ele diz ser o melhor dele para baixo
                             parent = Integer.parseInt(receivedData.split(",")[2]);
-                            System.out.println(parent);
                             nodeCandidateToCompare = Integer.parseInt(receivedData.split(",")[3]);
-                            System.out.println(nodeCandidateToCompare);
                             candidateValueToCompare = Integer.parseInt(receivedData.split(",")[4]);
-                            System.out.println(candidateValueToCompare);
 
                             // Se o ACK era para o nó que o recebeu trata a mensagem, senão descarta
                             if ( parent == node.getUniqueID() ) {
