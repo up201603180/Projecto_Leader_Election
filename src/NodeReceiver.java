@@ -11,7 +11,7 @@ public class NodeReceiver implements Runnable{
     private MulticastSocket receiveSocket;
     private DatagramPacket receivePacket;
 
-    public NodeReceiver( Node node, int port, InetAddress group, ArrayList<Integer> neighbours){
+    public NodeReceiver( Node node, int port, InetAddress group ){
         this.node = node;
         this.port = port;
         this.group = group;
@@ -26,6 +26,8 @@ public class NodeReceiver implements Runnable{
                 group = InetAddress.getByName( "230.0.0." + node.getNeighbours().get(i));
                 receiveSocket.joinGroup( group );
             }
+            // Join the broadcast group
+            receiveSocket.joinGroup( node.getBroadcast() );
         } catch (Exception e) {
             System.out.println("Failed to create socket.");
             //e.printStackTrace();
@@ -36,17 +38,13 @@ public class NodeReceiver implements Runnable{
     // Inteiros para guardar nó e valor durante ack state
     int nodeCandidateToCompare = 0;
     int candidateValueToCompare = 0;
+    int parent = 0;
 
     public void run() {
 
         try {
+
             initializeSockets();
-        } catch (IOException e) {
-            System.out.println("Failed to initialize sockets");
-            e.printStackTrace();
-            System.exit(1);
-        }
-        try {
 
             // Initialize Algorithm Variables
             node.setAckCounter( 0 );
@@ -76,6 +74,26 @@ public class NodeReceiver implements Runnable{
                 Thread.sleep(1);
                 System.out.println(receivedData);
 
+                senderID = Integer.parseInt(receivedData.split(",")[0]);
+                pos = receivedData.indexOf(",");
+                messageType = receivedData.substring(pos + 1, pos + 1 + 5 );
+
+                // Format: senderID, probe
+                // Probe Message
+                if ( messageType.equals( "probe" ) ) {
+                    node.setReplyID( senderID );
+                }
+                else if ( messageType.equals( "reply" ) ) {
+
+                    // Save the index of the probe sender to
+                    for ( int i = 0; i < node.getNeighbours().size(); i++ ) {
+                        if ( node.getNeighbours().get(i) == senderID ) {
+                            node.getNeighboursProbe().set(i, true);
+                            break;
+                        }
+                    }
+                }
+
                 // Format ID, election
                 // Standby State - waiting for first election message
                 if ( node.getMachineState() == 0 ) {
@@ -86,6 +104,7 @@ public class NodeReceiver implements Runnable{
                     if (messageType.equals("election") && !node.getInElection()) {
                         System.out.println("Node " + senderID + ": " + messageType);
                         node.setInElection(true);
+                        node.setNodeParent( senderID );
                         node.setWaitACK(true);
                     }
                 }
@@ -118,25 +137,26 @@ public class NodeReceiver implements Runnable{
 
                         case "ack":
                             // recebe informação do filho acerca do nó que ele diz ser o melhor dele para baixo
-                            nodeCandidateToCompare = Integer.parseInt(receivedData.split(",")[2]);
-                            System.out.println(nodeCandidateToCompare);
-                            candidateValueToCompare = Integer.parseInt(receivedData.split(",")[3]);
-                            System.out.println(candidateValueToCompare);
+                            parent = Integer.parseInt(receivedData.split(",")[2]);
+                            nodeCandidateToCompare = Integer.parseInt(receivedData.split(",")[3]);
+                            candidateValueToCompare = Integer.parseInt(receivedData.split(",")[4]);
 
-                            // If ack message is coming from child, update leader values
-                            if ( candidateValueToCompare > node.getNodeCandidateValue()) {
-                                node.setNodeCandidateValue( candidateValueToCompare );
-                                node.setNodeCandidate( nodeCandidateToCompare );
-                            }
-                            node.setAckCounter(node.getAckCounter() + 1);
+                            // Se o ACK era para o nó que o recebeu trata a mensagem, senão descarta
+                            if ( parent == node.getUniqueID() ) {
+                                // If ack message is coming from child, update leader values
+                                if ( candidateValueToCompare > node.getNodeCandidateValue()) {
+                                    node.setNodeCandidateValue( candidateValueToCompare );
+                                    node.setNodeCandidate( nodeCandidateToCompare );
+                                }
+                                node.setAckCounter(node.getAckCounter() + 1);
 
-                            if( node.getUniqueID() == 1 && node.getAckCounter() >= node.getNeighbours().size() ) {
-                                node.setWaitACK( false );
+                                if( node.getUniqueID() == 1 && node.getAckCounter() >= node.getNeighbours().size() ) {
+                                    node.setWaitACK( false );
+                                }
+                                else if ( node.getUniqueID() > 1 && node.getAckCounter() >= node.getNeighbours().size() - 1 ) {
+                                    node.setWaitACK( false );
+                                }
                             }
-                            else if ( node.getUniqueID() > 1 && node.getAckCounter() >= node.getNeighbours().size() - 1 ) {
-                                node.setWaitACK( false );
-                            }
-                            break;
 
                         case "ele":
                             // Se receber election de outros nós enquanto espera ack's, devolve immediate ack
