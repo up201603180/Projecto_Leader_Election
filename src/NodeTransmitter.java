@@ -139,13 +139,11 @@ public class NodeTransmitter implements Runnable{
                 if ( node.getMachineState() == 0 ) {
                     // Race Condition
                     Thread.sleep(1);
-                    if ( !node.getHasLeader() ) {
-                        if (node.getInElection()) {
+                    if ( (!node.getHasLeader() && node.getInElection() ) || node.getNewElection() ){
                             System.out.println("Election started, waiting ack...");
                             startElection();
                             node.setWaitACK(true);
                             node.setMachineState(1);
-                        }
                     }
                 }
                 // Wait ACK State

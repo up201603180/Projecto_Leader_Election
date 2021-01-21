@@ -59,8 +59,7 @@ public class NodeReceiver implements Runnable{
     private void checkHeartbeat(){
         if( !node.getHasHeartbeat() ) {
             System.out.println("A new election should be started");
-            //node.setNewElection(true);
-            //start new election
+            node.setNewElection( true );
         }
         else{
             System.out.println("I have heartbeat");
@@ -82,6 +81,7 @@ public class NodeReceiver implements Runnable{
             node.setNodeCandidate( node.getUniqueID() );
             node.setNodeCandidateValue( node.getValue() );
             node.setIackID( -1 );
+            node.setNewElection( false );
 
             // Heartbeat Thread
             new java.util.Timer().schedule(
