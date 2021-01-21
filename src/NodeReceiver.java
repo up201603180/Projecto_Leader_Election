@@ -40,6 +40,34 @@ public class NodeReceiver implements Runnable{
     int candidateValueToCompare = 0;
     int parent = 0;
 
+    private void checkProbe() {
+
+        for ( int i = 0; i < node.getNeighboursProbe().size(); i++ ) {
+            if ( !node.getNeighboursProbe().get(i) ) {
+                // Não recebeu reply de um dos vizinhos e deve remover da lista neighbours
+                System.out.println( "Lost connection with Node: " + node.getNeighbours().get(i) );
+                node.getNeighbours().remove(i);
+                node.getNeighboursProbe().remove(i);
+            }
+            else {
+                node.getNeighboursProbe().set(i, false);
+            }
+        }
+
+    }
+
+    private void checkHeartbeat(){
+        if( !node.getHasHeartbeat() ) {
+            System.out.println("A new election should be started");
+            //node.setNewElection(true);
+            //start new election
+        }
+        else{
+            System.out.println("I have heartbeat");
+            node.setHasHeartbeat(false);
+        }
+    }
+
     public void run() {
 
         try {
@@ -54,6 +82,28 @@ public class NodeReceiver implements Runnable{
             node.setNodeCandidate( node.getUniqueID() );
             node.setNodeCandidateValue( node.getValue() );
             node.setIackID( -1 );
+
+            // Heartbeat Thread
+            new java.util.Timer().schedule(
+                    new java.util.TimerTask() {
+                        @Override
+                        public void run() {
+
+                            checkProbe();
+                            node.setHasProbe( false );
+
+                            if ( node.getMachineState() == 0 ) {
+                                // If this node is the current leader, send HEARTBEAT
+                                if ( node.getHasLeader() && (node.getLeaderID() != node.getUniqueID()) ) {
+                                    checkHeartbeat();
+                                    node.setHasHeartbeat( false );
+                                }
+                            }
+
+                        }
+                    },
+                    15000, 15000  //aumentei em relacao a 5s para nao ser tao apertado o check
+            );
 
             byte[] packetData = new byte[1024];
             String receivedData;
@@ -92,6 +142,9 @@ public class NodeReceiver implements Runnable{
                             break;
                         }
                     }
+                }
+                else if ( messageType.equals("heart") ) {
+                    node.setHasHeartbeat( true );
                 }
 
                 // Format ID, election

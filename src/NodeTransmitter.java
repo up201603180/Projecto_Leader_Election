@@ -31,6 +31,31 @@ public class NodeTransmitter implements Runnable{
         }
     }
 
+    private void reply( int nodeID ) throws IOException {
+        byte[] packetData =  ( uniqueID + ",reply," + nodeID ).getBytes();
+        transmitPacket = new DatagramPacket(packetData, packetData.length, group, port);
+        transmitSocket.send(transmitPacket);
+        System.out.println("Message sent: " + new String(transmitPacket.getData()));
+    }
+
+    private void probe() throws IOException {
+        // change  this uniqueID to a node ID not to send probe
+        if ( uniqueID != -1 ) {
+
+            byte[] packetData =  ( uniqueID + ",probe").getBytes();
+            transmitPacket = new DatagramPacket(packetData, packetData.length, group, port);
+            transmitSocket.send(transmitPacket);
+            System.out.println("Message sent: " + new String(transmitPacket.getData()));
+        }
+    }
+
+    private void heartbeat() throws IOException {
+        byte[] packetData =  ( uniqueID + ",heartbeat").getBytes();
+        transmitPacket = new DatagramPacket(packetData, packetData.length, node.getBroadcast(), port);
+        transmitSocket.send(transmitPacket);
+        System.out.println("Message sent: " + new String(transmitPacket.getData()));
+    }
+
     private void startElection() throws IOException {
         byte[] packetData =  (uniqueID + ",election").getBytes();
         transmitPacket = new DatagramPacket(packetData, packetData.length, group, port);
@@ -69,6 +94,25 @@ public class NodeTransmitter implements Runnable{
 
             initializeSockets();
 
+            // Heartbeat Thread
+            new java.util.Timer().schedule(
+                    new java.util.TimerTask() {
+                        @Override
+                        public void run() {
+                            try {
+                                // Send probe periodically
+                                probe();
+                                // If this node is the current leader, send HEARTBEAT
+                                if ( node.getHasLeader() && (node.getLeaderID() == node.getUniqueID()) ) {
+                                    heartbeat();
+                                }
+                            } catch ( Exception e ) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }, 10000, 10000
+            );
+
             if ( node.getUniqueID() == 1 ) {
                 BufferedReader startInput = new BufferedReader(new InputStreamReader(System.in));
 
@@ -84,6 +128,12 @@ public class NodeTransmitter implements Runnable{
                 }
             }
             while( true ) {
+
+                // If has node to reply to
+                if ( node.getReplyID() > 0 ) {
+                    reply( node.getReplyID() );
+                    node.setReplyID( -1 );
+                }
 
                 // StandBy state
                 if ( node.getMachineState() == 0 ) {
@@ -159,6 +209,7 @@ public class NodeTransmitter implements Runnable{
                     }
                 }
             }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
